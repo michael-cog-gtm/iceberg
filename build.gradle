@@ -170,6 +170,8 @@ subprojects {
     }
   }
 
+  def mockitoMajorVersion = libs.versions.mockito.get().tokenize('.')[0] as int
+
   def testParallelism = System.getProperty('testParallelism')
   if (testParallelism != null) {
     def numTestWorkers
@@ -219,6 +221,7 @@ subprojects {
     }
 
     testArtifacts
+    mockitoAgent
   }
 
   tasks.withType(JavaCompile.class).configureEach {
@@ -238,8 +241,24 @@ subprojects {
     testImplementation libs.junit.platform.launcher
     testImplementation libs.slf4j.simple
     testImplementation libs.mockito.core
-    testImplementation libs.mockito.inline
+    if (mockitoMajorVersion < 5) {
+      // folded into mockito-core in Mockito 5
+      testImplementation libs.mockito.inline
+    } else {
+      mockitoAgent(libs.mockito.core) {
+        transitive = false
+      }
+    }
     testImplementation libs.assertj.core
+  }
+
+  if (mockitoMajorVersion >= 5) {
+    // Mockito 5 loads its inline mock maker as an agent; self-attaching is deprecated on newer JDKs
+    tasks.withType(Test).configureEach {
+      def agent = configurations.mockitoAgent
+      inputs.files(agent).withPropertyName('mockitoAgent').withNormalizer(ClasspathNormalizer)
+      jvmArgumentProviders.add({ ["-javaagent:${agent.singleFile}".toString()] } as CommandLineArgumentProvider)
+    }
   }
 
   test {
