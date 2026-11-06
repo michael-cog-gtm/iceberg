@@ -37,7 +37,6 @@ import org.apache.iceberg.relocated.com.google.common.collect.ImmutableSet;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.internal.util.collections.Sets;
 
 @ExtendWith(ParameterizedTestExtension.class)
 public class TestRewriteFiles extends TestBase {
@@ -65,7 +64,9 @@ public class TestRewriteFiles extends TestBase {
             () ->
                 commit(
                     table,
-                    table.newRewrite().rewriteFiles(Sets.newSet(FILE_A), Sets.newSet(FILE_B)),
+                    table
+                        .newRewrite()
+                        .rewriteFiles(ImmutableSet.of(FILE_A), ImmutableSet.of(FILE_B)),
                     branch))
         .isInstanceOf(ValidationException.class)
         .hasMessage("Missing required files to delete: /path/to/data-a.parquet");
@@ -94,7 +95,9 @@ public class TestRewriteFiles extends TestBase {
     assertThatThrownBy(
             () ->
                 apply(
-                    table.newRewrite().rewriteFiles(Sets.newSet(FILE_A), Collections.emptySet()),
+                    table
+                        .newRewrite()
+                        .rewriteFiles(ImmutableSet.of(FILE_A), Collections.emptySet()),
                     branch))
         .isInstanceOf(ValidationException.class)
         .hasMessage("Missing required files to delete: /path/to/data-a.parquet");
@@ -138,7 +141,9 @@ public class TestRewriteFiles extends TestBase {
     assertThatThrownBy(
             () ->
                 apply(
-                    table.newRewrite().rewriteFiles(Collections.emptySet(), Sets.newSet(FILE_A)),
+                    table
+                        .newRewrite()
+                        .rewriteFiles(Collections.emptySet(), ImmutableSet.of(FILE_A)),
                     branch))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("Files to delete cannot be empty");
@@ -185,7 +190,9 @@ public class TestRewriteFiles extends TestBase {
     ManifestFile initialManifest = latestSnapshot(base, branch).allManifests(table.io()).get(0);
 
     Snapshot pending =
-        apply(table.newRewrite().rewriteFiles(Sets.newSet(FILE_A), Sets.newSet(FILE_C)), branch);
+        apply(
+            table.newRewrite().rewriteFiles(ImmutableSet.of(FILE_A), ImmutableSet.of(FILE_C)),
+            branch);
 
     assertThat(pending.allManifests(table.io())).hasSize(2);
     assertThat(pending.allManifests(table.io())).doesNotContain(initialManifest);
@@ -217,7 +224,9 @@ public class TestRewriteFiles extends TestBase {
     ManifestFile initialManifest = latestSnapshot(table, branch).allManifests(table.io()).get(0);
 
     Snapshot pending =
-        apply(table.newRewrite().rewriteFiles(Sets.newSet(FILE_A), Sets.newSet(FILE_C)), branch);
+        apply(
+            table.newRewrite().rewriteFiles(ImmutableSet.of(FILE_A), ImmutableSet.of(FILE_C)),
+            branch);
 
     assertThat(pending.allManifests(table.io())).hasSize(2);
     assertThat(pending.allManifests(table.io())).doesNotContain(initialManifest);
@@ -394,7 +403,7 @@ public class TestRewriteFiles extends TestBase {
     table.ops().failCommits(5);
 
     RewriteFiles rewrite =
-        table.newRewrite().rewriteFiles(Sets.newSet(FILE_A), Sets.newSet(FILE_B));
+        table.newRewrite().rewriteFiles(ImmutableSet.of(FILE_A), ImmutableSet.of(FILE_B));
     Snapshot pending = apply(rewrite, branch);
 
     assertThat(pending.allManifests(table.io())).hasSize(2);
@@ -490,7 +499,7 @@ public class TestRewriteFiles extends TestBase {
     table.ops().failCommits(3);
 
     RewriteFiles rewrite =
-        table.newRewrite().rewriteFiles(Sets.newSet(FILE_A), Sets.newSet(FILE_B));
+        table.newRewrite().rewriteFiles(ImmutableSet.of(FILE_A), ImmutableSet.of(FILE_B));
     Snapshot pending = apply(rewrite, branch);
 
     assertThat(pending.allManifests(table.io())).hasSize(2);
@@ -696,7 +705,9 @@ public class TestRewriteFiles extends TestBase {
             () ->
                 commit(
                     table,
-                    table.newRewrite().rewriteFiles(Sets.newSet(FILE_C), Sets.newSet(FILE_D)),
+                    table
+                        .newRewrite()
+                        .rewriteFiles(ImmutableSet.of(FILE_C), ImmutableSet.of(FILE_D)),
                     branch))
         .isInstanceOf(ValidationException.class)
         .hasMessage("Missing required files to delete: /path/to/data-c.parquet");
@@ -715,7 +726,7 @@ public class TestRewriteFiles extends TestBase {
 
     RewriteFiles rewrite = table.newRewrite();
     Snapshot pending =
-        apply(rewrite.rewriteFiles(Sets.newSet(FILE_A), Sets.newSet(FILE_B)), branch);
+        apply(rewrite.rewriteFiles(ImmutableSet.of(FILE_A), ImmutableSet.of(FILE_B)), branch);
 
     assertThat(pending.allManifests(table.io())).hasSize(2);
 
@@ -736,7 +747,9 @@ public class TestRewriteFiles extends TestBase {
             () ->
                 commit(
                     table,
-                    table.newRewrite().rewriteFiles(Sets.newSet(FILE_A), Sets.newSet(FILE_D)),
+                    table
+                        .newRewrite()
+                        .rewriteFiles(ImmutableSet.of(FILE_A), ImmutableSet.of(FILE_D)),
                     branch))
         .isInstanceOf(ValidationException.class)
         .hasMessage("Missing required files to delete: /path/to/data-a.parquet");
@@ -764,7 +777,7 @@ public class TestRewriteFiles extends TestBase {
                     table
                         .newRewrite()
                         .validateFromSnapshot(snapshotBeforeDeletes)
-                        .rewriteFiles(Sets.newSet(FILE_A), Sets.newSet(FILE_A2)),
+                        .rewriteFiles(ImmutableSet.of(FILE_A), ImmutableSet.of(FILE_A2)),
                     branch))
         .isInstanceOf(ValidationException.class)
         .hasMessageStartingWith("Cannot commit, found new delete for replaced data file");
@@ -774,7 +787,7 @@ public class TestRewriteFiles extends TestBase {
         table
             .newRewrite()
             .validateFromSnapshot(snapshotAfterDeletes)
-            .rewriteFiles(Sets.newSet(FILE_A), Sets.newSet(FILE_A2)),
+            .rewriteFiles(ImmutableSet.of(FILE_A), ImmutableSet.of(FILE_A2)),
         branch);
   }
 
