@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,11 +43,11 @@ import org.apache.iceberg.jdbc.UncheckedSQLException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.mockito.stubbing.Answer;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -66,16 +67,24 @@ public class TestJdbcSnowflakeClient {
     doAnswer(invocation -> ((ClientPool.Action) invocation.getArguments()[0]).run(mockConnection))
         .when(mockClientPool)
         .run(any(ClientPool.Action.class));
-    doAnswer(
-            invocation ->
-                ((JdbcSnowflakeClient.ResultSetParser) invocation.getArguments()[2])
-                    .parse(mockResultSet))
+    Answer<Object> parseResultSet =
+        invocation ->
+            ((JdbcSnowflakeClient.ResultSetParser) invocation.getArguments()[2])
+                .parse(mockResultSet);
+    doAnswer(parseResultSet)
         .when(mockQueryHarness)
         .query(
             any(Connection.class),
             any(String.class),
             any(JdbcSnowflakeClient.ResultSetParser.class),
-            ArgumentMatchers.<String>any());
+            any(String[].class));
+    doAnswer(parseResultSet)
+        .when(mockQueryHarness)
+        .query(
+            any(Connection.class),
+            any(String.class),
+            any(JdbcSnowflakeClient.ResultSetParser.class),
+            isNull());
   }
 
   @Test
