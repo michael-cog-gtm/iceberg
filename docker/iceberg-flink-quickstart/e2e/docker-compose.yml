@@ -1,0 +1,145 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# The quickstart stack (../docker-compose.yml) with locally built jars, the REST fixture
+# built from this checkout, the Flink dashboard on localhost:8081 and a Spark client
+# for cross-engine reads. Driven by run-scenario.sh.
+x-flink-env: &flink-env
+  FLINK_PROPERTIES: |
+    jobmanager.rpc.address: jobmanager
+    taskmanager.numberOfTaskSlots: 6
+    parallelism.default: 2
+    rest.flamegraph.enabled: true
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: admin
+  AWS_SECRET_ACCESS_KEY: password
+  S3_ENDPOINT: http://object-store:9000
+
+x-flink-build: &flink-build
+  context: .
+  args:
+    FLINK_IMAGE: ${FLINK_IMAGE:?set FLINK_IMAGE}
+    FLINK_LINE: ${FLINK_LINE:?set FLINK_LINE}
+
+services:
+  jobmanager:
+    build: *flink-build
+    image: iceberg-flink-e2e:${FLINK_LINE}
+    hostname: jobmanager
+    container_name: jobmanager
+    depends_on:
+      iceberg-rest:
+        condition: service_healthy
+    networks:
+      iceberg_net:
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/overview"]
+      start_period: 30s
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    environment: *flink-env
+
+  taskmanager:
+    image: iceberg-flink-e2e:${FLINK_LINE}
+    hostname: taskmanager
+    container_name: taskmanager
+    depends_on:
+      jobmanager:
+        condition: service_healthy
+    networks:
+      iceberg_net:
+    command: taskmanager
+    environment: *flink-env
+
+  iceberg-rest:
+    image: iceberg-rest-fixture:local
+    hostname: iceberg-rest
+    depends_on:
+      create-bucket:
+        condition: service_completed_successfully
+    networks:
+      iceberg_net:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8181/v1/config"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    environment:
+      AWS_REGION: us-east-1
+      CATALOG_WAREHOUSE: s3://warehouse/
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://object-store:9000
+      CATALOG_S3_PATH__STYLE__ACCESS: "true"
+      CATALOG_S3_ACCESS__KEY__ID: admin
+      CATALOG_S3_SECRET__ACCESS__KEY: password
+
+  object-store:
+    image: rustfs/rustfs:1.0.0
+    hostname: object-store
+    environment:
+      RUSTFS_ACCESS_KEY: admin
+      RUSTFS_SECRET_KEY: password
+    networks:
+      iceberg_net:
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:9000/health/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  create-bucket:
+    image: rustfs/rustfs:1.0.0
+    depends_on:
+      object-store:
+        condition: service_healthy
+    networks:
+      iceberg_net:
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - >-
+        curl -sf -o /dev/null --aws-sigv4 aws:amz:us-east-1:s3 --user admin:password
+        --head http://object-store:9000/warehouse ||
+        curl -sSf --aws-sigv4 aws:amz:us-east-1:s3 --user admin:password
+        -X PUT http://object-store:9000/warehouse
+
+  spark:
+    image: ${SPARK_IMAGE:-apache/spark:3.5.7-java17}
+    hostname: spark
+    container_name: spark
+    depends_on:
+      iceberg-rest:
+        condition: service_healthy
+    networks:
+      iceberg_net:
+    entrypoint: ["tail", "-f", "/dev/null"]
+    volumes:
+      - ./jars/spark:/opt/iceberg-jars:ro
+      - ./sql:/opt/e2e-sql:ro
+    environment:
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: password
+
+networks:
+  iceberg_net:
