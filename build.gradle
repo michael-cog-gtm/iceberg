@@ -170,12 +170,6 @@ subprojects {
     }
   }
 
-  def mockitoVersionParts = libs.versions.mockito.get().tokenize('.')
-  def mockitoMajorVersion = mockitoVersionParts[0] as int
-  def mockitoMinorVersion = mockitoVersionParts.size() > 1 ? mockitoVersionParts[1] as int : 0
-  // mockito-core jars declare Premain-Class only from 5.14.0; older 5.x releases self-attach
-  def useMockitoAgent = mockitoMajorVersion > 5 || (mockitoMajorVersion == 5 && mockitoMinorVersion >= 14)
-
   def testParallelism = System.getProperty('testParallelism')
   if (testParallelism != null) {
     def numTestWorkers
@@ -245,25 +239,17 @@ subprojects {
     testImplementation libs.junit.platform.launcher
     testImplementation libs.slf4j.simple
     testImplementation libs.mockito.core
-    if (mockitoMajorVersion < 5) {
-      // folded into mockito-core in Mockito 5
-      testImplementation libs.mockito.inline
-    }
-    if (useMockitoAgent) {
-      mockitoAgent(libs.mockito.core) {
-        transitive = false
-      }
+    mockitoAgent(libs.mockito.core) {
+      transitive = false
     }
     testImplementation libs.assertj.core
   }
 
-  if (useMockitoAgent) {
-    // load the inline mock maker as an agent; self-attaching is deprecated on newer JDKs
-    tasks.withType(Test).configureEach {
-      def agent = configurations.mockitoAgent
-      inputs.files(agent).withPropertyName('mockitoAgent').withNormalizer(ClasspathNormalizer)
-      jvmArgumentProviders.add({ ["-javaagent:${agent.singleFile}".toString()] } as CommandLineArgumentProvider)
-    }
+  // load the inline mock maker as an agent; self-attaching is deprecated on newer JDKs
+  tasks.withType(Test).configureEach {
+    def agent = configurations.mockitoAgent
+    inputs.files(agent).withPropertyName('mockitoAgent').withNormalizer(ClasspathNormalizer)
+    jvmArgumentProviders.add({ ["-javaagent:${agent.singleFile}".toString()] } as CommandLineArgumentProvider)
   }
 
   test {

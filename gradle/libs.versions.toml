@@ -76,7 +76,7 @@ kafka = "3.9.2"
 kryo-shaded = "4.0.3"
 lz4Java = "1.12.1"
 microprofile-openapi-api = "3.1.2"
-mockito = "4.11.0"
+mockito = "5.24.0"
 mockserver = "5.15.0"
 nessie = "0.109.0"
 netty-buffer = "4.2.19.Final"
@@ -219,7 +219,6 @@ junit-suite-api = { module = "org.junit.platform:junit-platform-suite-api", vers
 junit-suite-engine = { module = "org.junit.platform:junit-platform-suite-engine", version.ref = "junit-platform" }
 kryo-shaded = { module = "com.esotericsoftware:kryo-shaded", version.ref = "kryo-shaded" }
 mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
-mockito-inline = { module = "org.mockito:mockito-inline", version.ref = "mockito" }
 mockito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
 mockserver-client-java = { module = "org.mock-server:mockserver-client-java", version.ref = "mockserver" }
 mockserver-netty = { module = "org.mock-server:mockserver-netty", version.ref = "mockserver" }
