@@ -64,7 +64,6 @@ import org.apache.spark.SparkException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
-import org.mockito.internal.util.collections.Iterables;
 
 public class TestTableEncryption extends CatalogTestBase {
   private static Map<String, String> appendCatalogEncryptionProperties(Map<String, String> props) {
@@ -274,7 +273,7 @@ public class TestTableEncryption extends CatalogTestBase {
     Table table = catalog.loadTable(tableIdent);
     TableMetadata currentMetadata = ((HasTableOperations) table).operations().current();
     Path metadataFile = new Path(currentMetadata.metadataFileLocation());
-    Path previousMetadataFile = new Path(Iterables.firstOf(currentMetadata.previousFiles()).file());
+    Path previousMetadataFile = new Path(currentMetadata.previousFiles().get(0).file());
 
     // manual FS tampering: replacing the current metadata file with a previous one
     Path crcPath = fs.getChecksumFile(metadataFile);
