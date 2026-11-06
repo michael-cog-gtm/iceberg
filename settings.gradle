@@ -18,6 +18,19 @@
  */
 
 rootProject.name = 'iceberg'
+
+dependencyResolutionManagement {
+  versionCatalogs {
+    libs {
+      // -PmockitoVersion=5.x.y runs the tests against another Mockito release
+      def mockitoVersion = providers.gradleProperty('mockitoVersion')
+      if (mockitoVersion.isPresent()) {
+        version('mockito', mockitoVersion.get())
+      }
+    }
+  }
+}
+
 include 'bom'
 include 'api'
 include 'common'
